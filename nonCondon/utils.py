@@ -70,156 +70,15 @@ def C_combine_A(head_mag, body_mag, N=2000000):
     return mag
 
 
-def curve_loss(pred, true):
+def local_peak_loss(pred, true, input_type="B", ratio=0.5):
     compute_loss = nn.MSELoss()
-    freq, inten = pred
-    true_freq, true_inten = true
-
-    inten_pred = torch.zeros(true_freq.shape)
-    for i in range(true_freq.shape[0]):
-        x = true_freq[i]
-        index = torch.sort(torch.abs(x - freq)).indices[0:2]
-        freq_tmp = freq[index]
-        inten_tmp = inten[index]
-        y = (inten_tmp[1] - inten_tmp[0]) / (freq_tmp[1] - freq_tmp[0]) * (x - freq_tmp[0]) + inten_tmp[0]
-        inten_pred[i] = y
-    loss = compute_loss(true_inten, inten_pred)
-
-    return loss
-
-
-def peak_loss(pred, true, type="B", ratio=100):
-    compute_loss = nn.MSELoss()
-    if type == "A":
+    if input_type == "A":
         peak_true = torch.FloatTensor([0.1532, 0.86515, 1])
         valley_true = torch.FloatTensor([0.6724])
         width_true = torch.FloatTensor([53.39509999999996])
         peak_pos = torch.FloatTensor([1617.69465, 1650.84327, 1681.53233])
         valley_pos = torch.FloatTensor([1664.71929])
-    elif type == "B":
-        peak_true = torch.FloatTensor([0.10881, 0.68999, 0.69411, 1])
-        valley_true = torch.FloatTensor([0.55722])
-        width_true = torch.FloatTensor([51.65726000000018])
-        peak_pos = torch.FloatTensor([1621.49026, 1650.52027, 1656.73477, 1683.69753])
-        valley_pos = torch.FloatTensor([1668.39139])
-    else:
-        raise ValueError("Type must be chosen from ['A', 'B']")
-
-    freq, inten = pred
-    # Define the consider range
-    consider_range = torch.logical_and(freq >= 1580, freq <= 1720)[1:-1]
-
-    # Find the predicted peaks
-    previous_smaller_index = inten[1:-1] - inten[0:-2] > 0
-    next_smaller_index = inten[1:-1] - inten[2:] > 0
-    peak_index = torch.logical_and(previous_smaller_index, next_smaller_index)
-    peak_index = torch.logical_and(peak_index, consider_range)
-    peak_index = torch.where(peak_index)[0] + 1
-    peak_pred = inten[peak_index]
-    peak_pos_pred = freq[peak_index]
-    # reverse peak order
-    peak_pred = torch.flip(peak_pred, dims=(0,))
-    peak_true = torch.flip(peak_true, dims=(0,))
-    peak_pos = torch.flip(peak_pos, dims=(0,))
-    peak_pos_pred = torch.flip(peak_pos_pred, dims=(0,))
-
-    if type == "A":
-        if peak_pred.shape[0] > 3:
-            peak_true = torch.hstack((peak_true, torch.zeros(peak_pred.shape[0] - 3)))
-            peak_pos = torch.hstack((peak_pos, torch.zeros(peak_pos_pred.shape[0] - 3)))
-        else:
-            peak_true = peak_true[0:peak_pred.shape[0]]
-            peak_pos = peak_pos[0:peak_pos_pred.shape[0]]
-    if type == "B":
-        if peak_pred.shape[0] > 4:
-            peak_true = torch.hstack((peak_true, torch.zeros(peak_pred.shape[0] - 4)))
-            peak_pos = torch.hstack((peak_pos, torch.zeros(peak_pos_pred.shape[0] - 4)))
-        else:
-            peak_true = peak_true[0:peak_pred.shape[0]]
-            peak_pos = peak_pos[0:peak_pos_pred.shape[0]]
-
-    # Find the predicted valleys
-    previous_larger_index = inten[1:-1] - inten[0:-2] < 0
-    next_larger_index = inten[1:-1] - inten[2:] < 0
-    valley_index = torch.logical_and(previous_larger_index, next_larger_index)
-    valley_index = torch.logical_and(valley_index, consider_range)
-    valley_index = torch.where(valley_index)[0] + 1
-    valley_pred = inten[valley_index]
-    valley_pos_pred = freq[valley_index]
-
-    # reverse valley order
-    valley_pred = torch.flip(valley_pred, dims=(0,))
-    valley_pos_pred = torch.flip(valley_pos_pred, dims=(0,))
-    if type == "A":
-        if valley_pred.shape[0] < 1:
-            valley_pred = torch.FloatTensor([1])
-            valley_pos_pred = torch.FloatTensor([1])
-        else:
-            valley_pred = valley_pred[0]  # only consider the 1st valley
-            valley_pos_pred = valley_pos_pred[0]
-    if type == "B":
-        if valley_pred.shape[0] < 1:
-            valley_pred = torch.FloatTensor([1])
-            valley_pos_pred = torch.FloatTensor([1])
-        else:
-            valley_pred = valley_pred[0]  # only consider the 1st valley
-            valley_pos_pred = valley_pos_pred[0]
-
-    # Calculate predict width
-    pred_width_index = torch.where(torch.abs(inten-0.5) < 0.005)[0]
-    if pred_width_index.shape[0] < 2:
-        width_pred = torch.FloatTensor([1000])
-    else:
-        width_left = freq[pred_width_index[0]]
-        width_right = freq[pred_width_index[-1]]
-        width_pred = width_right - width_left
-    
-    if type == "A":
-        if peak_pred.shape[0] >= 3:
-            peak_pred[0:2] = ratio*peak_pred[0:2]
-            peak_true[0:2] = ratio*peak_true[0:2]
-            peak_pred[2:] = ratio*peak_pred[2:]/2
-            peak_true[2:] = ratio*peak_true[2:]/2
-        else:
-            peak_pred = ratio*peak_pred
-            peak_true = ratio*peak_true
-    if type == "B":
-        if peak_pred.shape[0] >= 4:
-            peak_pred[0:3] = ratio*peak_pred[0:3]
-            peak_true[0:3] = ratio*peak_true[0:3]
-            peak_pred[3:] = ratio*peak_pred[3:]/2
-            peak_true[3:] = ratio*peak_true[3:]/2
-        else:
-            peak_pred = ratio*peak_pred
-            peak_true = ratio*peak_true
-    pred_char = torch.hstack((peak_pred, ratio*valley_pred, 10*width_pred, 10*valley_pos_pred, 10*peak_pos_pred))
-    true_char = torch.hstack((peak_true, ratio*valley_true, 10*width_true, 10*valley_pos, 10*peak_pos))
-    loss = compute_loss(true_char, pred_char)
-    if type == "B":
-        if peak_pred.shape[0] >= 3:
-            loss = loss + torch.square(peak_pred[1] - peak_pred[2])
-
-    """
-    width_loss = torch.square(width_pred-width_true).item()
-    peak_loss = torch.sum(torch.square(ratio*peak_pred - ratio*peak_true)).item()
-    valley_loss = torch.sum(torch.square(ratio*valley_pred - ratio*valley_true)).item()
-    print("width loss:", width_loss)
-    print("peak loss:", peak_loss)
-    print("valley loss:", valley_loss)
-    print("average loss:", (width_loss+peak_loss+valley_loss)/(peak_pred.shape[0]+2))
-    """
-    return loss
-
-
-def local_peak_loss(pred, true, type="B", ratio=0.5):
-    compute_loss = nn.MSELoss()
-    if type == "A":
-        peak_true = torch.FloatTensor([0.1532, 0.86515, 1])
-        valley_true = torch.FloatTensor([0.6724])
-        width_true = torch.FloatTensor([53.39509999999996])
-        peak_pos = torch.FloatTensor([1617.69465, 1650.84327, 1681.53233])
-        valley_pos = torch.FloatTensor([1664.71929])
-    elif type == "B":
+    elif input_type == "B":
         peak_true = torch.FloatTensor([0.10881, 0.68999, 0.69411, 1])
         valley_true = torch.FloatTensor([0.55722])
         width_true = torch.FloatTensor([51.65726000000018])
@@ -248,14 +107,14 @@ def local_peak_loss(pred, true, type="B", ratio=0.5):
     peak_pos = torch.flip(peak_pos, dims=(0,))
     peak_pos_pred = torch.flip(peak_pos_pred, dims=(0,))
 
-    if type == "A":
+    if input_type == "A":
         if peak_pred.shape[0] > 3:
             peak_true = torch.hstack((peak_true, torch.zeros(peak_pred.shape[0] - 3)))
             peak_pos = torch.hstack((peak_pos, torch.zeros(peak_pos_pred.shape[0] - 3)))
         else:
             peak_true = peak_true[0:peak_pred.shape[0]]
             peak_pos = peak_pos[0:peak_pos_pred.shape[0]]
-    if type == "B":
+    if input_type == "B":
         if peak_pred.shape[0] > 4:
             peak_true = torch.hstack((peak_true, torch.zeros(peak_pred.shape[0] - 4)))
             peak_pos = torch.hstack((peak_pos, torch.zeros(peak_pos_pred.shape[0] - 4)))
@@ -277,13 +136,13 @@ def local_peak_loss(pred, true, type="B", ratio=0.5):
         inten_loc_true = inten_true[local_index_true]
 
         inten_pred_loc = torch.zeros(inten_loc_true.shape)
-        for i in range(freq_loc_true.shape[0]):
-            x = freq_loc_true[i]
+        for j in range(freq_loc_true.shape[0]):
+            x = freq_loc_true[j]
             index = torch.sort(torch.abs(x - freq_loc)).indices[0:2]
             freq_tmp = freq_loc[index]
             inten_tmp = inten_loc[index]
             y = (inten_tmp[1] - inten_tmp[0]) / (freq_tmp[1] - freq_tmp[0]) * (x - freq_tmp[0]) + inten_tmp[0]
-            inten_pred_loc[i] = y
+            inten_pred_loc[j] = y
         local_loss += compute_loss(inten_loc_true, inten_pred_loc)
 
     # Find the predicted valleys
@@ -298,14 +157,14 @@ def local_peak_loss(pred, true, type="B", ratio=0.5):
     # reverse valley order
     valley_pred = torch.flip(valley_pred, dims=(0,))
     valley_pos_pred = torch.flip(valley_pos_pred, dims=(0,))
-    if type == "A":
+    if input_type == "A":
         if valley_pred.shape[0] < 1:
             valley_pred = torch.FloatTensor([1])
             valley_pos_pred = torch.FloatTensor([1])
         else:
             valley_pred = valley_pred[0]  # only consider the 1st valley
             valley_pos_pred = valley_pos_pred[0]
-    if type == "B":
+    if input_type == "B":
         if valley_pred.shape[0] < 1:
             valley_pred = torch.FloatTensor([1])
             valley_pos_pred = torch.FloatTensor([1])
@@ -322,7 +181,7 @@ def local_peak_loss(pred, true, type="B", ratio=0.5):
         width_right = freq[pred_width_index[-1]]
         width_pred = width_right - width_left
 
-    if type == "A":
+    if input_type == "A":
         if peak_pred.shape[0] >= 3:
             peak_pred[0:2] = peak_pred[0:2]
             peak_true[0:2] = peak_true[0:2]
@@ -331,7 +190,7 @@ def local_peak_loss(pred, true, type="B", ratio=0.5):
         else:
             peak_pred = ratio * peak_pred
             peak_true = ratio * peak_true
-    if type == "B":
+    if input_type == "B":
         if peak_pred.shape[0] >= 4:
             peak_pred[0:3] = peak_pred[0:3]
             peak_true[0:3] = peak_true[0:3]
@@ -343,7 +202,7 @@ def local_peak_loss(pred, true, type="B", ratio=0.5):
     pred_char = torch.hstack((peak_pred, valley_pred, ratio*width_pred, ratio*valley_pos_pred, ratio*peak_pos_pred))
     true_char = torch.hstack((peak_true, valley_true, ratio*width_true, ratio*valley_pos, ratio*peak_pos))
     loss = compute_loss(true_char, pred_char)
-    if type == "B":
+    if input_type == "B":
         if peak_pred.shape[0] >= 3:
             loss = loss + torch.square(peak_pred[1] - peak_pred[2])
     loss = loss + local_loss

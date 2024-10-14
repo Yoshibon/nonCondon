@@ -1,18 +1,21 @@
-import pandas as pd
-import numpy as np
-import torch
-from Models import *
-from torch.optim import Adam
-from utils import *
-import sys
-from Make_prediction import *
-from pathlib import Path
 import argparse
-import time
-from sklearn.preprocessing import StandardScaler
-import simply_A as spA
-import simply_B as spB
 import csv
+from pathlib import Path
+import sys
+import time
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+import torch
+from torch.optim import Adam
+
+from nonCondon.Models import *
+from nonCondon.utils import *
+from nonCondon.Make_prediction import *
+import nonCondon.simply_A as spA
+import nonCondon.simply_B as spB
+
 
 print("Data Loading Finished")
 parser = argparse.ArgumentParser()
@@ -30,26 +33,26 @@ nsnpsht = 200000
 save_model_every = 10
 
 # Read Dataset B
-true_results = pd.read_csv("B-helix.csv", header=None)
-true_results = true_results.values
-true_freq = torch.FloatTensor(true_results[:, 0])
-true_inten = torch.FloatTensor(true_results[:, 1])
+true_results_B = pd.read_csv("B-helix.csv", header=None)
+true_results_B = true_results_B.values
+true_freq_B = torch.FloatTensor(true_results_B[:, 0])
+true_inten_B = torch.FloatTensor(true_results_B[:, 1])
 
-X_CCC_body = pd.read_csv("Data/B_Helix/electric_field_C_CC_body.dat", header=None, sep='\s+')
-X_CCC_head = pd.read_csv("Data/B_Helix/electric_field_C_CC_head.dat", header=None, sep='\s+')
-X_CCO_body = pd.read_csv("Data/B_Helix/electric_field_C_CO_body.dat", header=None, sep='\s+')
-X_CCO_head = pd.read_csv("Data/B_Helix/electric_field_C_CO_head.dat", header=None, sep='\s+')
-X_GCO_body = pd.read_csv("Data/B_Helix/electric_field_G_CO_body.dat", header=None, sep='\s+')
-X_GCO_head = pd.read_csv("Data/B_Helix/electric_field_G_CO_head.dat", header=None, sep='\s+')
+X_CCC_body_B = pd.read_csv("Data/B_Helix/electric_field_C_CC_body.dat", header=None, sep='\s+')
+X_CCC_head_B = pd.read_csv("Data/B_Helix/electric_field_C_CC_head.dat", header=None, sep='\s+')
+X_CCO_body_B = pd.read_csv("Data/B_Helix/electric_field_C_CO_body.dat", header=None, sep='\s+')
+X_CCO_head_B = pd.read_csv("Data/B_Helix/electric_field_C_CO_head.dat", header=None, sep='\s+')
+X_GCO_body_B = pd.read_csv("Data/B_Helix/electric_field_G_CO_body.dat", header=None, sep='\s+')
+X_GCO_head_B = pd.read_csv("Data/B_Helix/electric_field_G_CO_head.dat", header=None, sep='\s+')
 
-X_CCC_body = X_CCC_body.iloc[:, [0, 1, 2, 6, 7, 8]]
-X_CCC_head = X_CCC_head.iloc[:, [0, 1, 2, 6, 7, 8]]
-X_CCC_body = X_CCC_body.values
-X_CCC_head = X_CCC_head.values
-X_CCO_body = X_CCO_body.values
-X_CCO_head = X_CCO_head.values
-X_GCO_body = X_GCO_body.values
-X_GCO_head = X_GCO_head.values
+X_CCC_body_B = X_CCC_body_B.iloc[:, [0, 1, 2, 6, 7, 8]]
+X_CCC_head_B = X_CCC_head_B.iloc[:, [0, 1, 2, 6, 7, 8]]
+X_CCC_body_B = X_CCC_body_B.values
+X_CCC_head_B = X_CCC_head_B.values
+X_CCO_body_B = X_CCO_body_B.values
+X_CCO_head_B = X_CCO_head_B.values
+X_GCO_body_B = X_GCO_body_B.values
+X_GCO_head_B = X_GCO_head_B.values
 
 # Read Dataset A
 true_results_A = pd.read_csv("A-helix.csv", header=None)
@@ -79,26 +82,26 @@ X_GCO_head_standardizer = StandardScaler()
 X_CCC_body_standardizer = StandardScaler()
 X_CCO_body_standardizer = StandardScaler()
 X_GCO_body_standardizer = StandardScaler()
-X_CCC_head_standardizer.fit(np.vstack((X_CCC_head, X_CCC_head_A)))
-X_CCO_head_standardizer.fit(np.vstack((X_CCO_head, X_CCO_head_A)))
-X_GCO_head_standardizer.fit(np.vstack((X_GCO_head, X_GCO_head_A)))
-X_CCC_body_standardizer.fit(np.vstack((X_CCC_body, X_CCC_body_A)))
-X_CCO_body_standardizer.fit(np.vstack((X_CCO_body, X_CCO_body_A)))
-X_GCO_body_standardizer.fit(np.vstack((X_GCO_body, X_GCO_body_A)))
+X_CCC_head_standardizer.fit(np.vstack((X_CCC_head_B, X_CCC_head_A)))
+X_CCO_head_standardizer.fit(np.vstack((X_CCO_head_B, X_CCO_head_A)))
+X_GCO_head_standardizer.fit(np.vstack((X_GCO_head_B, X_GCO_head_A)))
+X_CCC_body_standardizer.fit(np.vstack((X_CCC_body_B, X_CCC_body_A)))
+X_CCO_body_standardizer.fit(np.vstack((X_CCO_body_B, X_CCO_body_A)))
+X_GCO_body_standardizer.fit(np.vstack((X_GCO_body_B, X_GCO_body_A)))
 
-X_CCC_head = X_CCC_head_standardizer.transform(X_CCC_head)
-X_CCO_head = X_CCO_head_standardizer.transform(X_CCO_head)
-X_GCO_head = X_GCO_head_standardizer.transform(X_GCO_head)
-X_CCC_head = torch.FloatTensor(X_CCC_head)
-X_CCO_head = torch.FloatTensor(X_CCO_head)
-X_GCO_head = torch.FloatTensor(X_GCO_head)
+X_CCC_head_B = X_CCC_head_standardizer.transform(X_CCC_head_B)
+X_CCO_head_B = X_CCO_head_standardizer.transform(X_CCO_head_B)
+X_GCO_head_B = X_GCO_head_standardizer.transform(X_GCO_head_B)
+X_CCC_head_B = torch.FloatTensor(X_CCC_head_B)
+X_CCO_head_B = torch.FloatTensor(X_CCO_head_B)
+X_GCO_head_B = torch.FloatTensor(X_GCO_head_B)
 
-X_CCC_body = X_CCC_body_standardizer.transform(X_CCC_body)
-X_CCO_body = X_CCO_body_standardizer.transform(X_CCO_body)
-X_GCO_body = X_GCO_body_standardizer.transform(X_GCO_body)
-X_CCC_body = torch.FloatTensor(X_CCC_body)
-X_CCO_body = torch.FloatTensor(X_CCO_body)
-X_GCO_body = torch.FloatTensor(X_GCO_body)
+X_CCC_body_B = X_CCC_body_standardizer.transform(X_CCC_body_B)
+X_CCO_body_B = X_CCO_body_standardizer.transform(X_CCO_body_B)
+X_GCO_body_B = X_GCO_body_standardizer.transform(X_GCO_body_B)
+X_CCC_body_B = torch.FloatTensor(X_CCC_body_B)
+X_CCO_body_B = torch.FloatTensor(X_CCO_body_B)
+X_GCO_body_B = torch.FloatTensor(X_GCO_body_B)
 
 X_CCC_head_A = X_CCC_head_standardizer.transform(X_CCC_head_A)
 X_CCO_head_A = X_CCO_head_standardizer.transform(X_CCO_head_A)
@@ -121,18 +124,6 @@ dim_hidden = dim_model
 layer_num = layer_num
 dropout = 0.1
 dim_reg = 64
-model = MagnitudeModel([6, 9, 9], dim_hidden, layer_num, dropout, dim_reg)
-# send model to CPU/GPU
-_ = model.to(device)
-
-epoch = 500
-loss_train_history = []
-loss_valid_history = []
-# use MSE loss
-min_valid_loss = sys.maxsize
-best_epoch = 0
-
-early_stop_indicator = 0
 
 folder = "./Train/layer_" + str(layer_num) + " dim_" + str(dim_model) + " lr_" + str(lr) + " wd_" + str(wd) + "/"
 Path(folder).mkdir(parents=True, exist_ok=True)
@@ -166,11 +157,23 @@ for i in range(5, 15, 2):
 C_CO_index_A = np.sort(np.hstack(C_CO_index_A))
 C_CC_index_A = np.sort(np.hstack(C_CC_index_A))
 
-ck = folder + "best_checkpoint.pth"
-model, _, _ = load_model(ck, device)
-# instantiate an optimizer
-optimizer = Adam(model.parameters(), lr=lr, weight_decay=wd)
+try:
+    ck = folder + "best_checkpoint.pth"
+    model, optimizer, _ = load_model(ck, device)
+except:
+    # instantiate an optimizer
+    model = MagnitudeModel([6, 9, 9], dim_hidden, layer_num, dropout, dim_reg)
+    optimizer = Adam(model.parameters(), lr=lr, weight_decay=wd)
+# send model to CPU/GPU
+_ = model.to(device)
 
+epoch = 500
+loss_train_history = []
+loss_valid_history = []
+# use MSE loss
+min_valid_loss = sys.maxsize
+best_epoch = 0
+early_stop_indicator = 0
 for k in range(epoch):
     epoch_start = time.time()
     if k and k % save_model_every == 0:
@@ -178,18 +181,19 @@ for k in range(epoch):
     # set model training state
     model.train()
     forward_calculate_start = time.time()
-    C_CC_magnitude_head, C_CC_magnitude_body, C_CO_magnitude_head, C_CO_magnitude_body, G_CO_magnitude_head, \
-    G_CO_magnitude_body = model.forward(X_CCC_head, X_CCC_body, X_CCO_head, X_CCO_body, X_GCO_head, X_GCO_body)
+    C_CC_magnitude_head_B, C_CC_magnitude_body_B, C_CO_magnitude_head_B, C_CO_magnitude_body_B, G_CO_magnitude_head_B, \
+    G_CO_magnitude_body_B = model.forward(X_CCC_head_B, X_CCC_body_B, X_CCO_head_B, X_CCO_body_B, X_GCO_head_B,
+                                          X_GCO_body_B)
 
-    G_CO_magnitude = G_combine_B(G_CO_magnitude_head, G_CO_magnitude_body)
-    C_CO_magnitude = C_combine_B(C_CO_magnitude_head, C_CO_magnitude_body)
-    C_CC_magnitude = C_combine_B(C_CC_magnitude_head, C_CC_magnitude_body)
-    all_magnitude = torch.zeros(N_B).to(device)
-    all_magnitude[G_CO_index_B, ] = G_CO_magnitude.reshape(-1,)
-    all_magnitude[C_CO_index_B, ] = C_CO_magnitude.reshape(-1,)
-    all_magnitude[C_CC_index_B, ] = C_CC_magnitude.reshape(-1,)
-    all_magnitude = all_magnitude.reshape(-1, 48, 1)
-    inten, freq = spB.simply(all_magnitude)
+    G_CO_magnitude_B = G_combine_B(G_CO_magnitude_head_B, G_CO_magnitude_body_B)
+    C_CO_magnitude_B = C_combine_B(C_CO_magnitude_head_B, C_CO_magnitude_body_B)
+    C_CC_magnitude_B = C_combine_B(C_CC_magnitude_head_B, C_CC_magnitude_body_B)
+    all_magnitude_B = torch.zeros(N_B).to(device)
+    all_magnitude_B[G_CO_index_B, ] = G_CO_magnitude_B.reshape(-1,)
+    all_magnitude_B[C_CO_index_B, ] = C_CO_magnitude_B.reshape(-1,)
+    all_magnitude_B[C_CC_index_B, ] = C_CC_magnitude_B.reshape(-1,)
+    all_magnitude_B = all_magnitude_B.reshape(-1, 48, 1)
+    inten_B, freq_B = spB.simply(all_magnitude_B)
 
     all_magnitude_A = torch.zeros(N_A).to(device)
     C_CC_magnitude_head_A, C_CC_magnitude_body_A, C_CO_magnitude_head_A, C_CO_magnitude_body_A, G_CO_magnitude_head_A, \
@@ -209,7 +213,7 @@ for k in range(epoch):
 
     loss_calculate_start = time.time()
     # loss = curve_loss((freq, inten), (true_freq, true_inten))
-    loss_B = local_peak_loss((freq, inten), (true_freq, true_inten), "B")
+    loss_B = local_peak_loss((freq_B, inten_B), (true_freq_B, true_inten_B), "B")
     loss_A = local_peak_loss((freq_A, inten_A), (true_freq_A, true_inten_A), "A")
     loss = loss_A + loss_B
     loss_calculate_end = time.time()
@@ -228,18 +232,19 @@ for k in range(epoch):
 
     model.eval()
     # Evaluate B
-    all_magnitude = torch.zeros(N_B).to(device)
-    C_CC_magnitude_head, C_CC_magnitude_body, C_CO_magnitude_head, C_CO_magnitude_body, G_CO_magnitude_head, \
-    G_CO_magnitude_body = model.forward(X_CCC_head, X_CCC_body, X_CCO_head, X_CCO_body, X_GCO_head, X_GCO_body)
-    G_CO_magnitude = G_combine_B(G_CO_magnitude_head, G_CO_magnitude_body)
-    C_CO_magnitude = C_combine_B(C_CO_magnitude_head, C_CO_magnitude_body)
-    C_CC_magnitude = C_combine_B(C_CC_magnitude_head, C_CC_magnitude_body)
-    all_magnitude[G_CO_index_B, ] = G_CO_magnitude.reshape(-1, )
-    all_magnitude[C_CO_index_B, ] = C_CO_magnitude.reshape(-1, )
-    all_magnitude[C_CC_index_B, ] = C_CC_magnitude.reshape(-1, )
-    all_magnitude = all_magnitude.reshape(-1, 48, 1)
-    inten, freq = spB.simply(all_magnitude)
-    loss_B = peak_loss((freq, inten), None, "B")
+    all_magnitude_B = torch.zeros(N_B).to(device)
+    C_CC_magnitude_head_B, C_CC_magnitude_body_B, C_CO_magnitude_head_B, C_CO_magnitude_body_B, G_CO_magnitude_head_B, \
+    G_CO_magnitude_body_B = model.forward(X_CCC_head_B, X_CCC_body_B, X_CCO_head_B, X_CCO_body_B, X_GCO_head_B,
+                                          X_GCO_body_B)
+    G_CO_magnitude_B = G_combine_B(G_CO_magnitude_head_B, G_CO_magnitude_body_B)
+    C_CO_magnitude_B = C_combine_B(C_CO_magnitude_head_B, C_CO_magnitude_body_B)
+    C_CC_magnitude_B = C_combine_B(C_CC_magnitude_head_B, C_CC_magnitude_body_B)
+    all_magnitude_B[G_CO_index_B, ] = G_CO_magnitude_B.reshape(-1, )
+    all_magnitude_B[C_CO_index_B, ] = C_CO_magnitude_B.reshape(-1, )
+    all_magnitude_B[C_CC_index_B, ] = C_CC_magnitude_B.reshape(-1, )
+    all_magnitude_B = all_magnitude_B.reshape(-1, 48, 1)
+    inten_B, freq_B = spB.simply(all_magnitude_B)
+    loss_B = local_peak_loss((freq_B, inten_B), None, "B")
 
     # Evaluate A
     all_magnitude_A = torch.zeros(N_A).to(device)
@@ -254,7 +259,7 @@ for k in range(epoch):
     all_magnitude_A[C_CC_index_A, ] = C_CC_magnitude_A.reshape(-1, )
     all_magnitude_A = all_magnitude_A.reshape(-1, 30, 1)
     inten_A, freq_A = spA.simply(all_magnitude_A)
-    loss_A = peak_loss((freq_A, inten_A), None, "A")
+    loss_A = local_peak_loss((freq_A, inten_A), None, "A")
 
     loss_train_history.append(loss.item())
     loss_valid_history.append(loss_A.item())
@@ -278,20 +283,20 @@ for k in range(epoch):
 print(best_epoch)
 
 # Best B
-C_CC_magnitude_head, C_CC_magnitude_body, C_CO_magnitude_head, C_CO_magnitude_body, G_CO_magnitude_head, \
-G_CO_magnitude_body, best_epoch = make_prediction(X_CCC_head, X_CCC_body, X_CCO_head, X_CCO_body,
-                                                  X_GCO_head, X_GCO_body, folder=folder)
-G_CO_magnitude = G_combine_B(G_CO_magnitude_head, G_CO_magnitude_body)
-C_CO_magnitude = C_combine_B(C_CO_magnitude_head, C_CO_magnitude_body)
-C_CC_magnitude = C_combine_B(C_CC_magnitude_head, C_CC_magnitude_body)
+C_CC_magnitude_head_B, C_CC_magnitude_body_B, C_CO_magnitude_head_B, C_CO_magnitude_body_B, G_CO_magnitude_head_B, \
+G_CO_magnitude_body_B, best_epoch_B = make_prediction(X_CCC_head_B, X_CCC_body_B, X_CCO_head_B, X_CCO_body_B,
+                                                      X_GCO_head_B, X_GCO_body_B, folder=folder)
+G_CO_magnitude_B = G_combine_B(G_CO_magnitude_head_B, G_CO_magnitude_body_B)
+C_CO_magnitude_B = C_combine_B(C_CO_magnitude_head_B, C_CO_magnitude_body_B)
+C_CC_magnitude_B = C_combine_B(C_CC_magnitude_head_B, C_CC_magnitude_body_B)
 
-all_magnitude = torch.zeros(N_B).to(device)
-all_magnitude[G_CO_index_B, ] = G_CO_magnitude.reshape(-1,)
-all_magnitude[C_CO_index_B, ] = C_CO_magnitude.reshape(-1,)
-all_magnitude[C_CC_index_B, ] = C_CC_magnitude.reshape(-1,)
-all_magnitude = all_magnitude.reshape(-1, 48, 1)
-inten_B, freq_B = spB.simply(all_magnitude)
-loss_B = peak_loss((freq_B, inten_B), (true_freq, true_inten), "B")
+all_magnitude_B = torch.zeros(N_B).to(device)
+all_magnitude_B[G_CO_index_B, ] = G_CO_magnitude_B.reshape(-1,)
+all_magnitude_B[C_CO_index_B, ] = C_CO_magnitude_B.reshape(-1,)
+all_magnitude_B[C_CC_index_B, ] = C_CC_magnitude_B.reshape(-1,)
+all_magnitude_B = all_magnitude_B.reshape(-1, 48, 1)
+inten_B, freq_B = spB.simply(all_magnitude_B)
+loss_B = local_peak_loss((freq_B, inten_B), (true_freq_B, true_inten_B), "B")
 inten_B = inten_B.detach().cpu().numpy()
 freq_B = freq_B.detach().cpu().numpy()
 plot_data_B = np.hstack((freq_B.reshape(-1, 1), inten_B.reshape(-1, 1)))
@@ -302,7 +307,8 @@ all_magnitude_df_B = pd.DataFrame(all_magnitude)
 
 # Best A
 C_CC_magnitude_head_A, C_CC_magnitude_body_A, C_CO_magnitude_head_A, C_CO_magnitude_body_A, G_CO_magnitude_head_A, \
-G_CO_magnitude_body_A, _ = make_prediction(X_CCC_head_A, X_CCC_body_A, X_CCO_head_A, X_CCO_body_A, X_GCO_head_A, X_GCO_body_A, folder=folder)
+G_CO_magnitude_body_A, _ = make_prediction(X_CCC_head_A, X_CCC_body_A, X_CCO_head_A, X_CCO_body_A,
+                                           X_GCO_head_A, X_GCO_body_A, folder=folder)
 G_CO_magnitude_A = G_combine_A(G_CO_magnitude_head_A, G_CO_magnitude_body_A)
 C_CO_magnitude_A = C_combine_A(C_CO_magnitude_head_A, C_CO_magnitude_body_A)
 C_CC_magnitude_A = C_combine_A(C_CC_magnitude_head_A, C_CC_magnitude_body_A)
