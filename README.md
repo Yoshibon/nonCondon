@@ -9,17 +9,19 @@ Infrared spectroscopy is a key technique for studying the structural dynamics of
 ## Project Structure 
 
 - `./nonCondon/`: Contains the core components of the model, including functions, models, and utilities. 
+  - `./saved_model/`: Contains the best model we reported in the paper
+  -  `./standardizer/`: Contains the standardizer we used in developing model. The new data **MUST** be processed by these standardizers for doing preditions.
   - `Make_prediction.py`: Defines the function for making predictions using the trained model.  
-  - `Models.py`: Contains the implementation of the machine learning model used for spectroscopy.  
-  - `simply_A.py`: Calculates the spectroscopy of G5C5 using the provided magnitudes. 
-  - `simply_B.py`: Calculates the spectroscopy of GC8 using the provided magnitudes.
+  - `Models.py`: Contains the implementation of the deep learning model used for spectroscopy.  
   - `utils.py`: Includes utility functions and the definition of the custom loss function used in training.
-- `./picked_model/`: Contains the final trained version of the model, which was selected for evaluation and analysis. 
-- `train.py`: The script that handles the training procedure for the model.
+  
+- `./demo_data/`: Contains demo datasets for illustrating how to apply our model
+- `./predictions/`: Contains the predicted magnitudes of demo datasets
+- `demo_example.ipynb`: A simple example of how to use our model making predictions
 
 ## Data Availability
 
-The datasets used for training are not included in this repository due to size constraints. To access the datasets, please visit [this link](#).
+The datasets used for training are not included in this repository due to size constraints. 
 
 ## Further Information
 
