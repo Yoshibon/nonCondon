@@ -18,5 +18,5 @@ def load_model(file_path, device):
 
 
 def save_tensor(tensor_input, file_name):
-    df = pd.DataFrame(tensor_input.numpy())
+    df = pd.DataFrame(tensor_input.numpy(), columns=['magnitude'])
     df.to_csv(file_name, index=False)
